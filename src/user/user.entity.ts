@@ -1,21 +1,24 @@
-import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
-import {hash} from "bcrypt";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { hash } from 'bcrypt';
 
 @Schema()
 export class UserEntity {
   @Prop()
-  email: string
+  email: string;
 
   @Prop()
-  username: string
+  username: string;
 
-  @Prop({select: false})
-  password: string
+  @Prop({ select: false })
+  password: string;
+
+  @Prop({ type: [{ type: String }] })
+  favorites: string[];
 }
 
-export const UserEntitySchema = SchemaFactory.createForClass(UserEntity)
+export const UserEntitySchema = SchemaFactory.createForClass(UserEntity);
 
 UserEntitySchema.pre<UserEntity>('save', async function (next: Function) {
-  this.password = await hash(this.password, 10)
-  next()
-})
+  this.password = await hash(this.password, 10);
+  next();
+});
