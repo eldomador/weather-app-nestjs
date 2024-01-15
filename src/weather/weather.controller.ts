@@ -1,13 +1,15 @@
-// weather.controller.ts
-
-import { Controller, Get, Param, HttpException, HttpStatus, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  HttpException,
+  HttpStatus,
+  Request,
+} from '@nestjs/common';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { plainToClass } from 'class-transformer';
 import axios from 'axios';
-import { ExpressRequest } from '../user/middlewares/auth.middleware'; // Adjust the path as needed
+import { ExpressRequest } from '../user/middlewares/auth.middleware';
 import { ApiTags, ApiParam } from '@nestjs/swagger';
-
-
 
 class WeatherParams {
   @IsNotEmpty({ message: 'City cannot be empty' })
@@ -15,37 +17,79 @@ class WeatherParams {
   city: string;
 }
 
-@ApiTags('weather') 
+class WeatherForecast {
+  city: string;
+  forecast: WeatherData[];
+}
+
+class WeatherData {
+  date: string;
+  temperature: number;
+  description: string;
+  humidity: number;
+  pressure: number;
+  windSpeed: number;
+  sunrise: string;
+  sunset: string;
+}
+
+@ApiTags('weather')
 @Controller('weather')
 export class WeatherController {
   @ApiParam({ name: 'city', example: 'London', description: 'City name' })
   @Get(':city')
-  async getWeather(@Param() params: WeatherParams, @Request() request: ExpressRequest) {
+  async getWeather(
+    @Param() params: WeatherParams,
+    @Request() request: ExpressRequest,
+  ) {
     try {
       if (!request.user) {
         throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
       }
 
       const apiKey = 'cc3ca09823a4b0909f4229c13e0d090b';
-      const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${params.city}&appid=${apiKey}&units=metric`;
+      const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${params.city}&appid=${apiKey}&units=metric`;
 
       const response = await axios.get(apiUrl);
-      const weatherData = response.data;
+      const forecastData = response.data;
 
-      if (!weatherData || weatherData.cod !== 200) {
-        throw new HttpException('Weather data not found', HttpStatus.NOT_FOUND);
+      if (!forecastData || forecastData.cod !== '200') {
+        throw new HttpException(
+          'Weather forecast data not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
-      const formattedData = plainToClass(WeatherParams, {
-        city: weatherData.name,
-        temperature: weatherData.main.temp,
-        description: weatherData.weather[0].description,
-        humidity: weatherData.main.humidity,
-        pressure: weatherData.main.pressure,
-        windSpeed: weatherData.wind.speed,
-        sunrise: new Date(weatherData.sys.sunrise * 1000).toLocaleTimeString(),
-        sunset: new Date(weatherData.sys.sunset * 1000).toLocaleTimeString(),
+      const filteredData: WeatherData[] = [];
+      const processedDates: Set<string> = new Set();
+
+      forecastData.list.forEach((data) => {
+        const date = new Date(data.dt * 1000).toLocaleDateString();
+
+        if (!processedDates.has(date)) {
+          processedDates.add(date);
+
+          filteredData.push({
+            date,
+            temperature: data.main.temp,
+            description: data.weather[0].description,
+            humidity: data.main.humidity,
+            pressure: data.main.pressure,
+            windSpeed: data.wind.speed,
+            sunrise: new Date(
+              forecastData.city.sunrise * 1000,
+            ).toLocaleTimeString(),
+            sunset: new Date(
+              forecastData.city.sunset * 1000,
+            ).toLocaleTimeString(),
+          });
+        }
       });
+
+      const formattedData: WeatherForecast = {
+        city: forecastData.city.name,
+        forecast: filteredData,
+      };
 
       return formattedData;
     } catch (error) {
@@ -53,8 +97,8 @@ export class WeatherController {
         throw error;
       } else {
         throw new HttpException(
-          `Unable to fetch weather data for ${params.city}`,
-          HttpStatus.INTERNAL_SERVER_ERROR
+          `Unable to fetch weather forecast data for ${params.city}`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
     }
