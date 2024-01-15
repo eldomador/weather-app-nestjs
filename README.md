@@ -3,6 +3,8 @@
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
 ## Installation
+Install MongoDB: Make sure you have MongoDB installed on your system. You can download it from MongoDB Official Website.
+Connect to MongoDB: After installing MongoDB, create a database and update the connection string in the src/app.module.ts file or any configuration file used for database connections.
 
 ```bash
 $ npm install
